@@ -85,6 +85,31 @@ function formatBytes(n) {
   return n < 1024 ? n + " B" : (n / 1024).toFixed(1) + " KB";
 }
 
+function updateInputStats() {
+  const el = document.getElementById('inputStats');
+  if (!el) return;
+  const val = inputEditor.getValue();
+  const lines = val.split('\n').length;
+  const chars = val.length;
+  const size = (new Blob([val]).size / 1024).toFixed(2);
+  el.textContent = 'Lines: ' + lines + '  Characters: ' + chars + '  Size: ' + size + ' KB';
+}
+
+function updateOutputStats() {
+  const el = document.getElementById('outputStats');
+  if (!el) return;
+  const val = outputEditor.getValue();
+  const lines = val.split('\n').length;
+  const chars = val.length;
+  const size = (new Blob([val]).size / 1024).toFixed(2);
+  el.textContent = 'Lines: ' + lines + '  Characters: ' + chars + '  Size: ' + size + ' KB';
+}
+
+inputEditor.on('change', () => updateInputStats());
+outputEditor.on('change', () => updateOutputStats());
+updateInputStats();
+updateOutputStats();
+
 convertBtn.addEventListener("click", () => {
   const input = inputEditor.getValue();
   const start = performance.now();
@@ -108,12 +133,14 @@ convertBtn.addEventListener("click", () => {
 
 /* ================= Entity replacement ================= */
 function replaceEntities(html, format) {
-  // Sort: longest Entity Name first to avoid partial replacements
   const sorted = [...entityList].sort(
     (a, b) => (b['Entity Name'] || '').length - (a['Entity Name'] || '').length
   );
 
-  return html.replace(/(>)([^<]*)(<)/g, (match, open, text, close) => {
+  let totalFound = 0;
+  let totalReplaced = 0;
+
+  const result = html.replace(/(>)([^<]*)(<)/g, (match, open, text, close) => {
     let replaced = text;
 
     for (const entity of sorted) {
@@ -124,40 +151,55 @@ function replaceEntities(html, format) {
                                entity['Character'];
 
       if (!char || !replacement) continue;
-
-      // SKIP entity names containing < or >
       if (char.includes('<') || char.includes('>')) continue;
-
-      // SKIP & and # — handle separately at the end
       if (char === '&' || char === '#') continue;
 
       const escaped = char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const re = new RegExp(escaped, 'g');
-      replaced = replaced.replace(re, replacement);
+      const matches = replaced.match(re);
+      if (matches) {
+        totalFound += matches.length;
+        replaced = replaced.replace(re, replacement);
+        totalReplaced += matches.length;
+      }
     }
 
-    // Handle & LAST — only replace standalone &
+    // Handle & LAST
     const ampReplacement =
       format === 'decimal' ? '&#38;' :
       format === 'hex'     ? '&#x26;' :
                              '&amp;';
-    replaced = replaced.replace(
-      /&(?!#[0-9]+;|#x[0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/g,
-      ampReplacement
+    const ampMatches = replaced.match(
+      /&(?!#[0-9]+;|#x[0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/g
     );
+    if (ampMatches) {
+      totalFound += ampMatches.length;
+      replaced = replaced.replace(
+        /&(?!#[0-9]+;|#x[0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/g,
+        ampReplacement
+      );
+      totalReplaced += ampMatches.length;
+    }
 
-    // Handle # LAST — only replace standalone # not inside &#...;
+    // Handle # LAST
     const hashReplacement =
       format === 'decimal' ? '&#35;' :
       format === 'hex'     ? '&#x23;' :
                              '&num;';
-    replaced = replaced.replace(
-      /#(?![0-9]+;|x[0-9a-fA-F]+;)/g,
-      hashReplacement
-    );
+    const hashMatches = replaced.match(/#(?![0-9]+;|x[0-9a-fA-F]+;)/g);
+    if (hashMatches) {
+      totalFound += hashMatches.length;
+      replaced = replaced.replace(
+        /#(?![0-9]+;|x[0-9a-fA-F]+;)/g,
+        hashReplacement
+      );
+      totalReplaced += hashMatches.length;
+    }
 
     return open + replaced + close;
   });
+
+  return { result, totalFound, totalReplaced };
 }
 
 function highlightEntities(format) {
@@ -176,16 +218,33 @@ function highlightEntities(format) {
   }
 }
 
+document.getElementById("resetDefaultsBtn").addEventListener("click", () => {
+  document.getElementById("statOriginal").textContent = "0 KB";
+  document.getElementById("statCleaned").textContent = "0 KB";
+  document.getElementById("statReduction").textContent = "0%";
+  document.getElementById("statTime").textContent = "0 ms";
+  document.getElementById("statEntitiesFound").textContent = "--";
+  document.getElementById("statEntitiesReplaced").textContent = "--";
+  document.getElementById("entityBar").style.display = "none";
+});
+
 document.getElementById("replaceEntityBtn").addEventListener("click", () => {
   if (!entityListReady) {
-    alert('Entity list not loaded yet. Make sure entities.json exists and you are running on a server (not file://).');
+    alert('Entity list not loaded yet.');
     return;
   }
   const format = document.getElementById("entityFormat").value;
   const current = outputEditor.getValue();
-  const replaced = replaceEntities(current, format);
-  outputEditor.setValue(replaced);
+  const { result, totalFound, totalReplaced } = replaceEntities(current, format);
+
+  outputEditor.setOption('readOnly', false);
+  outputEditor.setValue(result);
+  outputEditor.setOption('readOnly', true);
+
   highlightEntities(format);
+
+  document.getElementById('statEntitiesFound').textContent = totalFound;
+  document.getElementById('statEntitiesReplaced').textContent = totalReplaced;
 });
 
 clearBtn.addEventListener("click", () => {
@@ -218,6 +277,8 @@ function cleanupHtml(src) {
   html = stripDuplicateTags(html);   // 1
   html = replaceHeader(html);        // 2
   html = removeEndOfFile(html);      // 3
+  html = removeDivTags(html);        // NEW - remove div tags
+  html = firstParaToH1(html);        // NEW - first p to h1
   html = boldToH2(html);             // 4
   html = italicToH3(html);           // 5
   html = closeOrphanP(html);         // 7
@@ -227,8 +288,8 @@ function cleanupHtml(src) {
   html = bodytextToIndent(html);     // 11
   html = normalToNoindent(html);     // 12
   html = mixedInlineToH3(html);      // moved here
-  html = finalBodytextCleanup(html); // NEW - final pass
-  html = mixedBodytextCleanup(html);  // NEW
+  html = finalBodytextCleanup(html); // final pass
+  html = mixedBodytextCleanup(html); // final pass 2
   html = formatOutput(html);         // 13
 
   return html;
@@ -270,9 +331,32 @@ function removeEndOfFile(html) {
   return html;
 }
 
+/* ---- 16: remove all <div> and </div> tags ---- */
+function removeDivTags(html) {
+  html = html.replace(/<div\b[^>]*>/gi, '');
+  html = html.replace(/<\/div>/gi, '');
+  return html;
+}
+
+/* ---- 17: first <p> after <body> becomes <h1> ---- */
+function firstParaToH1(html) {
+  return html.replace(
+    /(<body[^>]*>\s*)(?:<div[^>]*>\s*)*(<p\b[^>]*>)([\s\S]*?)(<\/p>)/i,
+    (match, body, openP, content, closeP) => {
+      const text = content.replace(/<\/?[^>]+>/g, '').trim();
+      return body + '<h1 class="h1">' + text + '</h1>';
+    }
+  );
+}
+
 /* ---- HELPER: strip only <b>/</b> tags, preserving surrounding spaces ---- */
 function stripBoldTags(s) {
   return s.replace(/<\/?b\b[^>]*>/gi, " ").replace(/\s+/g, " ").trim();
+}
+
+/* ---- HELPER: strip <b>/<i> tags for heading conversion ---- */
+function stripHeadingTags(s) {
+  return s.replace(/<\/?[bi]\b[^>]*>/gi, '').replace(/\s+/g, ' ').trim();
 }
 
 /* ---- 4: p.bodytext/normal wholly wrapped in <b>...</b> becomes h2 ---- */
@@ -280,7 +364,7 @@ function boldToH2(html) {
   return html.replace(
     /<p\s+class="(?:bodytext|normal)"[^>]*>\s*<b>((?:(?!<\/p>)[\s\S])*?)<\/b>\s*<\/p>/gi,
     (match, content) => {
-      const text = stripBoldTags(content);
+      const text = stripHeadingTags(content);
       const charCount = text.replace(/<[^>]+>/g, '').length;
       const wordCount = text.replace(/<[^>]+>/g, '').trim().split(/\s+/).length;
 
@@ -297,7 +381,10 @@ function boldToH2(html) {
 function italicToH3(html) {
   return html.replace(
     /<p\b[^>]*>\s*(<i>[^<]*(?:<(?!\/i>)[^<]*)*<\/i>)\s*(?:<\/i>\s*)*<\/p>/gi,
-    (_m, content) => '<h3 class="h3">' + content.trim() + '</h3>'
+    (_m, content) => {
+      const text = stripHeadingTags(content);
+      return '<h3 class="h3">' + text + '</h3>';
+    }
   );
 }
 
@@ -321,8 +408,8 @@ function mixedInlineToH3(html) {
         .trim();
       if (outsideText.length > 0) return match;
 
-      const stripped = stripBoldTags(content);
-      return '<h3 class="h3">' + stripped + '</h3>';
+      const clean = stripHeadingTags(content);
+      return '<h3 class="h3">' + clean + '</h3>';
     }
   );
 }

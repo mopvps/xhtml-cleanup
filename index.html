@@ -24,56 +24,87 @@
 
   <hr class="divider">
 
-  <main class="workspace">
-    <section class="panel">
-      <div class="panel-header">INPUT HTML</div>
-      <textarea id="inputArea" spellcheck="false" placeholder="Paste your junk HTML here..."></textarea>
-      <div class="panel-footer">
-        <button id="clearBtn" class="btn btn-outline"><img src="static/delete.png" width="18" height="18" alt="clear"/> CLEAR INPUT</button>
+  <div class="main-layout">
+    <div class="left-col">
+      <div class="panel-left panel">
+        <div class="panel-header">INPUT HTML</div>
+        <textarea id="inputArea" spellcheck="false" placeholder="Paste your junk HTML here..."></textarea>
+        <div class="panel-footer">
+          <span id="inputStats" class="stat-text">Lines: 0  Characters: 0  Size: 0 KB</span>
+          <button id="clearBtn"><img src="static/delete.png" width="14" height="14" alt="clear"/> CLEAR INPUT</button>
+        </div>
       </div>
-    </section>
+    </div>
 
-    <section class="center-col">
-      <button id="convertBtn" class="btn-convert-circle" title="Clean HTML">
+    <div class="center-col">
+      <button id="convertBtn" title="Clean HTML">
         <img src="static/lightning.png" width="28" height="28" alt="lightning"/>
         <span>CLEAN →</span>
       </button>
-    </section>
+    </div>
 
-    <section class="panel">
-      <div class="panel-header">CLEANED OUTPUT</div>
-      <textarea id="outputArea" spellcheck="false" readonly placeholder="Cleaned output appears here..."></textarea>
-      <div class="panel-footer">
-        <button id="copyBtn" class="btn btn-outline"><img src="static/copy.png" width="18" height="18" alt="copy"/> COPY TO CLIPBOARD</button>
+    <div class="right-col">
+      <div class="panel-right panel">
+        <div class="panel-header">CLEANED OUTPUT</div>
+        <textarea id="outputArea" spellcheck="false" readonly placeholder="Cleaned output appears here..."></textarea>
+        <div class="panel-footer">
+          <span id="outputStats" class="stat-text">Lines: 0  Characters: 0  Size: 0 KB</span>
+          <button id="copyBtn"><img src="static/copy.png" width="14" height="14" alt="copy"/> COPY</button>
+        </div>
       </div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <div id="entityBar" style="display:none">
-    <select id="entityFormat">
-      <option value="decimal">Decimal (&#225;)</option>
-      <option value="hex">Hexadecimal (&#xE1;)</option>
-      <option value="named">Named (&aacute;)</option>
-    </select>
-    <button id="replaceEntityBtn">Replace Entities</button>
+    <div class="entity-bar-left">
+      <div class="entity-group">
+        <span class="entity-bar-label">ENTITY MAPPING</span>
+        <select id="entityFormat">
+          <option value="decimal">Decimal (&#225;)</option>
+          <option value="hex">Hexadecimal (&#xE1;)</option>
+          <option value="named" selected>Named (&aacute;)</option>
+        </select>
+      </div>
+      <div class="entity-group">
+        <span class="entity-bar-label">QUICK ACTIONS</span>
+        <button id="resetDefaultsBtn" class="btn-text-orange">Reset Defaults</button>
+      </div>
+    </div>
+    <div class="entity-bar-right">
+      <button id="replaceEntityBtn" class="btn-outline-dark">REPLACE ENTITIES</button>
+    </div>
   </div>
 
   <section class="stats-bar">
-    <div class="stat">
-      <span class="stat-label">ORIGINAL SIZE</span>
-      <span class="stat-value" id="statOriginal">0 B</span>
+    <div class="stat-card">
+      <div class="stat-icon" style="color:#3b82f6">○</div>
+      <span class="stat-label">ORIGINAL</span>
+      <span class="stat-value" style="color:#3b82f6" id="statOriginal">0 KB</span>
     </div>
-    <div class="stat">
-      <span class="stat-label">CLEANED SIZE</span>
-      <span class="stat-value" id="statCleaned">0 B</span>
+    <div class="stat-card">
+      <div class="stat-icon" style="color:#8b5cf6">✦</div>
+      <span class="stat-label">CLEANED</span>
+      <span class="stat-value" style="color:#8b5cf6" id="statCleaned">0 KB</span>
     </div>
-    <div class="stat">
-      <span class="stat-label">REDUCTION %</span>
-      <span class="stat-value" id="statReduction">0%</span>
+    <div class="stat-card stat-card-highlight">
+      <div class="stat-icon" style="color:#f97316">↘</div>
+      <span class="stat-label">REDUCTION</span>
+      <span class="stat-value" style="color:#f97316" id="statReduction">0%</span>
     </div>
-    <div class="stat">
-      <span class="stat-label">PROCESS TIME</span>
-      <span class="stat-value" id="statTime">0 ms</span>
+    <div class="stat-card">
+      <div class="stat-icon" style="color:#f97316">⏱</div>
+      <span class="stat-label">SPEED</span>
+      <span class="stat-value" style="color:#f97316" id="statTime">0 ms</span>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="color:#f97316">⌕</div>
+      <span class="stat-label">FOUND</span>
+      <span class="stat-value" style="color:#f97316" id="statEntitiesFound">--</span>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="color:#22c55e">✓</div>
+      <span class="stat-label">REPLACED</span>
+      <span class="stat-value" style="color:#22c55e" id="statEntitiesReplaced">--</span>
     </div>
   </section>
 
