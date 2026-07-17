@@ -279,6 +279,47 @@ body {
   margin: 0;
 }
 
+/* ---- Entity replace bar ---- */
+#entityBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff7ed;
+  border: 1px solid #f97316;
+  border-radius: 8px;
+  margin: 12px 32px 0;
+}
+
+#entityFormat {
+  padding: 8px 12px;
+  border: 1px solid #f97316;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #333;
+}
+
+#replaceEntityBtn {
+  padding: 8px 20px;
+  background: #f97316;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#replaceEntityBtn:hover {
+  background: #ea6c00;
+}
+
+.entity-highlight {
+  background: #fff176;
+  border-radius: 3px;
+  color: #333;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 900px) {
   .workspace {

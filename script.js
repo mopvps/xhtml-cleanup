@@ -1,3 +1,31 @@
+/* ================= Entity list ================= */
+let entityList = [];
+let entityListReady = false;
+
+fetch('entities.json')
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(data => {
+    entityList = data;
+    entityListReady = true;
+    const btn = document.getElementById('replaceEntityBtn');
+    if (btn) {
+      btn.disabled = false;
+      btn.title = entityList.length + ' entities loaded';
+    }
+    console.log('Entities loaded:', entityList.length);
+  })
+  .catch(err => {
+    console.error('Entity list failed to load:', err);
+    const btn = document.getElementById('replaceEntityBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.title = 'entities.json failed to load - use a local server';
+    }
+  });
+
 /* ================= CodeMirror editors ================= */
 const inputEditor = CodeMirror.fromTextArea(document.getElementById('inputArea'), {
   mode: 'htmlmixed',
@@ -74,6 +102,90 @@ convertBtn.addEventListener("click", () => {
   document.getElementById("statCleaned").textContent = formatBytes(cleanedBytes);
   document.getElementById("statReduction").textContent = reduction + "%";
   document.getElementById("statTime").textContent = elapsed.toFixed(1) + " ms";
+
+  document.getElementById("entityBar").style.display = "flex";
+});
+
+/* ================= Entity replacement ================= */
+function replaceEntities(html, format) {
+  // Sort: longest Entity Name first to avoid partial replacements
+  const sorted = [...entityList].sort(
+    (a, b) => (b['Entity Name'] || '').length - (a['Entity Name'] || '').length
+  );
+
+  return html.replace(/(>)([^<]*)(<)/g, (match, open, text, close) => {
+    let replaced = text;
+
+    for (const entity of sorted) {
+      const char = entity['Entity Name'];
+      const replacement =
+        format === 'decimal' ? entity['Decimal'] :
+        format === 'hex'     ? entity['Hexadecimal'] :
+                               entity['Character'];
+
+      if (!char || !replacement) continue;
+
+      // SKIP entity names containing < or >
+      if (char.includes('<') || char.includes('>')) continue;
+
+      // SKIP & and # — handle separately at the end
+      if (char === '&' || char === '#') continue;
+
+      const escaped = char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(escaped, 'g');
+      replaced = replaced.replace(re, replacement);
+    }
+
+    // Handle & LAST — only replace standalone &
+    const ampReplacement =
+      format === 'decimal' ? '&#38;' :
+      format === 'hex'     ? '&#x26;' :
+                             '&amp;';
+    replaced = replaced.replace(
+      /&(?!#[0-9]+;|#x[0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/g,
+      ampReplacement
+    );
+
+    // Handle # LAST — only replace standalone # not inside &#...;
+    const hashReplacement =
+      format === 'decimal' ? '&#35;' :
+      format === 'hex'     ? '&#x23;' :
+                             '&num;';
+    replaced = replaced.replace(
+      /#(?![0-9]+;|x[0-9a-fA-F]+;)/g,
+      hashReplacement
+    );
+
+    return open + replaced + close;
+  });
+}
+
+function highlightEntities(format) {
+  const pattern =
+    format === 'decimal' ? /&#\d+;/g :
+    format === 'hex'     ? /&#x[0-9A-Fa-f]+;/g :
+                           /&[a-zA-Z]+;/g;
+
+  const doc = outputEditor.getDoc();
+  const text = outputEditor.getValue();
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    const from = doc.posFromIndex(match.index);
+    const to = doc.posFromIndex(match.index + match[0].length);
+    doc.markText(from, to, { className: 'entity-highlight' });
+  }
+}
+
+document.getElementById("replaceEntityBtn").addEventListener("click", () => {
+  if (!entityListReady) {
+    alert('Entity list not loaded yet. Make sure entities.json exists and you are running on a server (not file://).');
+    return;
+  }
+  const format = document.getElementById("entityFormat").value;
+  const current = outputEditor.getValue();
+  const replaced = replaceEntities(current, format);
+  outputEditor.setValue(replaced);
+  highlightEntities(format);
 });
 
 clearBtn.addEventListener("click", () => {
