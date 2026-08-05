@@ -285,11 +285,13 @@ function cleanupHtml(src) {
   html = fixUnbalancedInline(html);  // 8
   html = removeEmptyP(html);         // 9
   html = cleanupTables(html);        // 10
+  html = unknownToNoindent(html);    // 10.5 — catch remaining p.unknown
   html = bodytextToIndent(html);     // 11
   html = normalToNoindent(html);     // 12
   html = mixedInlineToH3(html);      // moved here
   html = finalBodytextCleanup(html); // final pass
   html = mixedBodytextCleanup(html); // final pass 2
+  html = remainingNormalToNoindent(html); // 15.5 — mop-up remaining p.normal
   html = formatOutput(html);         // 13
 
   return html;
@@ -497,6 +499,13 @@ function cleanupTables(html) {
   return html;
 }
 
+function unknownToNoindent(html) {
+  return html.replace(
+    /<p\s+class="unknown"[^>]*>([\s\S]*?)<\/p>/gi,
+    '<p class="noindent">$1</p>'
+  );
+}
+
 function stripClassAttr(attrs) {
   return attrs.replace(/\s*class="[^"]*"/gi, "").trim();
 }
@@ -622,6 +631,13 @@ function mixedBodytextCleanup(html) {
     (_match, attrs, content) => {
       return '<p class="indent"' + attrs + '>' + content + '</p>';
     }
+  );
+}
+
+function remainingNormalToNoindent(html) {
+  return html.replace(
+    /<p\s+class="normal"[^>]*>([\s\S]*?)<\/p>/gi,
+    '<p class="noindent">$1</p>'
   );
 }
 
