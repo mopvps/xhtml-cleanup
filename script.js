@@ -679,15 +679,7 @@ function formatOutput(html) {
       first = false;
     }
 
-    let indentDepth = depth;
-    if (leadingClose) indentDepth = Math.max(0, depth - 1);
-    depth = Math.max(0, depth + opens - closes);
-
-    if (/^<\?xml/i.test(line) || /^<!DOCTYPE/i.test(line)) {
-      out.push(line);
-    } else {
-      out.push("  ".repeat(indentDepth) + line);
-    }
+    out.push(line);
   }
 
   return out.join("\n");
