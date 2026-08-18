@@ -275,6 +275,8 @@ function cleanupHtml(src) {
   let html = src;
 
   html = stripDuplicateTags(html);   // 1
+  html = stripSpanTags(html);        // 1.5 — strip all span tags, keep content
+  html = stripEmptyInlineTags(html); // 1.6 — remove empty <b></b> <i></i>
   html = replaceHeader(html);        // 2
   html = removeEndOfFile(html);      // 3
   html = removeDivTags(html);        // NEW - remove div tags
@@ -292,6 +294,7 @@ function cleanupHtml(src) {
   html = finalBodytextCleanup(html); // final pass
   html = mixedBodytextCleanup(html); // final pass 2
   html = remainingNormalToNoindent(html); // 15.5 — mop-up remaining p.normal
+  html = normalizeWhitespace(html);  // step 15.6 — clean whitespace inside <p>
   html = formatOutput(html);         // 13
 
   return html;
@@ -302,6 +305,14 @@ function stripDuplicateTags(html) {
   html = html.replace(/(<(b|i)\b[^>]*>)\s*\1/gi, "$1");
   html = html.replace(/(<\/(b|i)>)\s*\1/gi, "$1");
   return html;
+}
+
+function stripSpanTags(html) {
+  return html.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+}
+
+function stripEmptyInlineTags(html) {
+  return html.replace(/<(b|i)>\s*<\/\1>/gi, '');
 }
 
 /* ---- 2: header replacement + CSS path ---- */
@@ -639,6 +650,15 @@ function remainingNormalToNoindent(html) {
     /<p\s+class="normal"[^>]*>([\s\S]*?)<\/p>/gi,
     '<p class="noindent">$1</p>'
   );
+}
+
+function normalizeWhitespace(html) {
+  return html.replace(/(<p[^>]*>)([\s\S]*?)(<\/p>)/gi, function(match, open, content, close) {
+    content = content.replace(/\t+/g, ' ');     // tabs → space
+    content = content.replace(/ {2,}/g, ' ');   // multiple spaces → single space
+    content = content.trim();                    // trim ends
+    return open + content + close;
+  });
 }
 
 /* ---- 13: clean indentation of final HTML ---- */
